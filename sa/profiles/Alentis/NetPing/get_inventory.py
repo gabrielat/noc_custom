@@ -1,0 +1,65 @@
+# -*- coding: utf-8 -*-
+# ---------------------------------------------------------------------
+# Alentis.NetPing.get_inventory
+# ---------------------------------------------------------------------
+# Copyright (C) 2007-2014 The NOC Project
+# See LICENSE for details
+# ---------------------------------------------------------------------
+
+# Python modules
+import re
+
+# NOC modules
+from noc.core.script.base import BaseScript
+from noc.sa.interfaces.igetinventory import IGetInventory
+
+
+class Script(BaseScript):
+    name = "Alentis.NetPing.get_inventory"
+    interface = IGetInventory
+    cache = True
+
+    rx_snmp = re.compile(r"^(?P<platform>\S+), FW \S+$")
+
+    rx_plat = re.compile(r"^var devname='+(?P<platform>.+)+';$", re.MULTILINE)
+
+    rx_rev = re.compile(r"^var hwmodel=\d+;var hwver=+(?P<revision>\d+)+;", re.MULTILINE)
+
+    def execute(self):
+        # Try SNMP first
+        if self.has_snmp():
+            try:
+                ver = self.snmp.get("1.3.6.1.2.1.1.1.0", cached=True)
+                match = self.rx_snmp.search(ver)
+                return [
+                    {
+                        "type": "CHASSIS",
+                        "number": "1",
+                        "vendor": "Alentis",
+                        "part_no": [match.group("platform")],
+                    }
+                ]
+            except self.snmp.TimeOutError:
+                pass
+
+        # Fallback to HTTP
+        response = self.http.get("/devname.cgi")
+        match = self.rx_plat.search(response.body)
+        platform = match.group("platform")
+        match = self.rx_rev.search(response.body)
+        revision = match.group("revision")
+
+        data = self.profile.var_data(self, "/setup_get.cgi")
+
+        return [
+            {
+                "type": "CHASSIS",
+                "number": "1",
+                "builtin": False,
+                "vendor": "Alentis",
+                "part_no": [platform],
+                "revision": revision,
+                "serial": data["serialnum"],
+                "description": data["location"].encode("UTF8"),
+            }
+        ]

@@ -1,0 +1,44 @@
+# -*- coding: utf-8 -*-
+# ---------------------------------------------------------------------
+# Linksys.VoIP.get_version
+# ---------------------------------------------------------------------
+# Copyright (C) 2007-2019 The NOC Project
+# See LICENSE for details
+# ---------------------------------------------------------------------
+
+# Python modules
+import re
+
+# NOC modules
+from noc.core.script.base import BaseScript
+from noc.sa.interfaces.igetversion import IGetVersion
+from noc.core.text import strip_html_tags
+
+
+class Script(BaseScript):
+    name = "Linksys.VoIP.get_version"
+    cache = True
+    interface = IGetVersion
+
+    rx_platform = re.compile(
+        r"^Product Name:+(?P<platform>\S+)+Serial Number:+(?P<serial>\S+)$", re.MULTILINE
+    )
+    rx_version = re.compile(
+        r"^Software Version:+(?P<version>\S+)+Hardware Version:+" r"(?P<hardware>\S+)$",
+        re.MULTILINE,
+    )
+
+    def execute(self):
+        v = self.http.get("/")
+        v = strip_html_tags(v)
+        platform = self.rx_platform.search(v)
+        version = self.rx_version.search(v)
+        return {
+            "vendor": "Linksys",
+            "platform": platform.group("platform"),
+            "version": version.group("version"),
+            "attributes": {
+                "HW version": version.group("hardware"),
+                "Serial Number": platform.group("serial"),
+            },
+        }

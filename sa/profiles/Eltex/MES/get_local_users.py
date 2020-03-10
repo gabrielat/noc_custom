@@ -1,0 +1,46 @@
+# -*- coding: utf-8 -*-
+# ---------------------------------------------------------------------
+# Eltex.MES.get_local_users
+# ---------------------------------------------------------------------
+# Copyright (C) 2007-2018 The NOC Project
+# See LICENSE for details
+# ---------------------------------------------------------------------
+
+# Python modules
+import re
+
+# NOC modules
+from noc.core.script.base import BaseScript
+from noc.sa.interfaces.igetlocalusers import IGetLocalUsers
+
+
+class Script(BaseScript):
+    name = "Eltex.MES.get_local_users"
+    interface = IGetLocalUsers
+
+    rx_name = re.compile(
+        r"^username\s+(?P<username>\S+)\s+password encrypted "
+        r"(\S+\s+privilege\s+(?P<privilege>\d+)|.*)"
+    )
+    rx_priv = re.compile(r"^(\S+\s|\s+\S+\s|\S+\s+\S+\s)+(?P<privilege>\d+)")
+
+    def execute(self):
+        data = self.scripts.get_config()
+        r = []
+        data = data.split("\n")
+        for i in range(len(data)):
+            name = self.rx_name.search(data[i].strip())
+            if name:
+                user_class = "operator"
+                if name.group("privilege"):
+                    privilege = name.group("privilege")
+                else:
+                    i = i + 1
+                    priv = self.rx_priv.match(data[i].strip())
+                    privilege = priv.group("privilege")
+                if privilege == "15":
+                    user_class = "superuser"
+                else:
+                    user_class = privilege
+                r += [{"username": name.group("username"), "class": user_class, "is_active": True}]
+        return r
