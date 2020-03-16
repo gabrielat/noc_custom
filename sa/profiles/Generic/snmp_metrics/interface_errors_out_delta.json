@@ -1,6 +1,0 @@
-{
-  "$metric": "Interface | Errors | Out | Delta",
-  "$type": "ifindex",
-  "oid": "IF-MIB::ifOutErrors.{{ ifIndex }}",
-  "type": "delta"
-}

@@ -1,6 +1,0 @@
-{
-  "$metric": "Interface | Discards | Out",
-  "$type": "ifindex",
-  "oid": "IF-MIB::ifOutDiscards.{{ ifIndex }}",
-  "type": "counter"
-}
